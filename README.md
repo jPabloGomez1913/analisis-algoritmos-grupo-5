@@ -205,7 +205,34 @@ Esta diferencia no depende simplemente de que una solución tenga constantes de 
 
 **Qué no cubre.** La comparación directa con la exhaustiva llega hasta n = 12 en las pruebas y hasta n = 20 en la medición, porque más allá la exhaustiva no termina en un tiempo razonable. Para tamaños mayores, incluido el rango real de 40 a 120 solicitudes, la corrección de la voraz se apoya en el argumento de la propiedad de elección voraz (sección 3) y no en una comprobación directa. Las pruebas comparan el número de jornadas, no que los conjuntos elegidos sean idénticos, porque pueden existir varias programaciones óptimas. Tampoco hay una prueba dedicada a los empates en la hora de fin, que solo afectan a cuál jornada se elige y no a cuántas. Por último, no se valida que cada solicitud cumpla `inicio < fin`: el código lo da por supuesto, como la sección 2, y en los datos de prueba se cumple por construcción, porque `generar_instancia` usa una duración mínima de 60 minutos.
 
-## 5.3 Pruebas experimentales 
+## 5.3 Pruebas experimentales
+
+**Diseño del experimento.** [medicion.py](src/jornadas_unidades/medicion.py) mide las tres soluciones sobre instancias sintéticas de [datos.py](src/jornadas_unidades/datos.py), con tres grupos de tamaños según hasta dónde puede llegar cada una:
+
+- **Tamaños comunes** (voraz, regla actual y exhaustiva): de 4 a 20, de dos en dos. Son los únicos donde la exhaustiva termina en un tiempo razonable y, por tanto, donde se puede comprobar que la voraz obtiene el valor óptimo.
+- **Tamaños grandes** (voraz y regla actual): 40, 80, 120, 250, 500, 1 000, 2 000, 4 000, 8 000 y 16 000. Incluyen el rango real del caso, de 40 a 120 solicitudes por subregión.
+- **Solo voraz**: 32 000 y 64 000.
+
+En los tres grupos hay parejas de tamaños donde el segundo es el doble del primero, que se aprovechan en la sección 5.4. Para cada tamaño se generan instancias con tres semillas (11, 23 y 37) y las tres soluciones reciben exactamente la misma instancia.
+
+Cada medición repite la ejecución 5 veces, 3 veces si n ≥ 8 000 y una sola vez en la exhaustiva con n ≥ 16 (a ese tamaño una corrida ya es lenta: con n = 20 tardó unos 5,7 s, y cada unidad más en n duplica el tiempo). El tiempo de una instancia es la mediana de sus repeticiones y el tiempo reportado para cada tamaño es la mediana entre las tres semillas. Las operaciones y las jornadas elegidas se reportan como promedio entre semillas.
+
+Solo se cronometra la ejecución de la estrategia con `time.perf_counter`: la generación de datos y el conteo de operaciones quedan fuera, y el recolector de basura se desactiva durante la medición para que sus pausas no entren como ruido.
+
+**Nota sobre la medición.** Los tiempos se tomaron en un computador con Windows, sin aislarlo de otros procesos del sistema, y por eso tienen ruido: en los tamaños pequeños cada ejecución dura microsegundos y cualquier interrupción pesa mucho. Las medianas y las repeticiones lo reducen, pero no lo eliminan. El número de operaciones, en cambio, depende solo del algoritmo y de la instancia (con las mismas semillas se repite exactamente), así que es la evidencia principal del análisis, y el tiempo la complementa.
+
+**Resultados.** Las dos gráficas usan escala logarítmica en ambos ejes, y la franja verde marca el rango real de 40 a 120 solicitudes.
+
+![Tiempo vs. tamaño de entrada](graficas/jornadas_unidades/tiempo_vs_n.png)
+
+En tiempo, la exhaustiva queda muy por encima de las otras dos y solo llega hasta n = 20. Dentro de la franja del rango real, la regla actual queda por encima de la voraz. La curva de la voraz tiene pequeños saltos y tramos casi planos (por ejemplo entre n = 1 000 y n = 2 000); no son un cambio de comportamiento del algoritmo, sino el ruido de medición descrito arriba. Las operaciones, que no tienen ese ruido, crecen de forma regular.
+
+![Operaciones vs. tamaño de entrada](graficas/jornadas_unidades/operaciones_vs_n.png)
+
+En operaciones, la exhaustiva llega a 1 048 575 con n = 20, mientras que la voraz y la regla actual hacen entre 80 y 90. Estas dos se cruzan entre n = 20 y n = 40: con tamaños muy pequeños la regla actual hace menos operaciones, pero desde el cruce queda por encima y la distancia crece. Dentro del rango real, con n = 40 la voraz hace 202 operaciones frente a 294 de la regla actual, y con n = 120, 793 frente a 2 518.
+
+**Archivos.** El generador está en [datos.py](src/jornadas_unidades/datos.py), el experimento en [medicion.py](src/jornadas_unidades/medicion.py) y las tablas en [resultados/jornadas_unidades/](resultados/jornadas_unidades/): `tiempos.csv`, `contraste_complejidad.csv` y `factores_duplicacion.csv`. En `graficas/jornadas_unidades/` hay también una gráfica por estrategia que compara lo medido con la curva teórica, que se usa en la sección 5.4.
+
 ## 5.4 Lo medido frente a lo esperado 
 ## 5.5 Escala real, ventana y energía
 
