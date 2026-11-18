@@ -112,6 +112,44 @@ El total de solicitudes aceptadas para el mes es de **3**.
 
 # 4. Implementación
 
+## Descripción de la solución desarrollada
+
+El código se encuentra en `src/jornadas_unidades/`. Cada archivo tiene una función específica dentro del desarrollo del proyecto:
+
+- [estrategia.py](src/jornadas_unidades/estrategia.py): contiene la estrategia voraz (`seleccionar_jornadas`) y las funciones de apoyo `hay_cruce` y `valor`.
+- [exhaustivo.py](src/jornadas_unidades/exhaustivo.py): contiene una solución que prueba todas las combinaciones posibles de solicitudes (2ⁿ). Se utiliza como referencia para comprobar si los resultados son óptimos en casos pequeños.
+- [regla_actual.py](src/jornadas_unidades/regla_actual.py): representa la forma en que el coordinador realiza actualmente la asignación, teniendo en cuenta el orden de llegada de las solicitudes y rechazando aquellas que se cruzan.
+- [datos.py](src/jornadas_unidades/datos.py): genera ejemplos de solicitudes de manera automática, utilizando una semilla fija para obtener los mismos datos en cada ejecución.
+- [medicion.py](src/jornadas_unidades/medicion.py): compara el tiempo y la cantidad de operaciones de las tres soluciones con diferentes cantidades de solicitudes. También guarda los resultados en archivos CSV y genera las gráficas.
+- [pruebas.py](src/jornadas_unidades/pruebas.py): contiene pruebas con `assert` para comprobar que las tres soluciones funcionen correctamente.
+
+## Tecnologías y herramientas utilizadas
+
+- Python 3.12.5, utilizando anotaciones de tipo y docstrings para facilitar la comprensión del código.
+- Biblioteca estándar: `csv`, `gc`, `math`, `random`, `statistics`, `time`, `functools`, `pathlib` y `typing`.
+- Librerías externas: `matplotlib` para crear las gráficas y `numpy` para calcular el exponente empírico a partir de los resultados. Las versiones exactas están en `requirements.txt`.
+- GitHub para trabajar en equipo y llevar un registro de los cambios realizados en el proyecto.
+
+## Decisiones de implementación relevantes
+
+- **Jornadas que se tocan en un extremo.** Se estableció que una jornada puede comenzar justo cuando termina otra, sin que esto se considere un cruce. Para manejar esta situación, los intervalos se representan como `[inicio, fin)`. Por esta razón, la estrategia voraz utiliza `>=` y la función `hay_cruce` utiliza `>` para identificar los cruces. La regla actual también sigue esta misma condición, de manera que las tres soluciones trabajen bajo las mismas reglas.
+
+- **Ordenamiento estable y empates.** Cuando dos solicitudes terminan a la misma hora, Python mantiene el orden en el que fueron recibidas. De esta forma, se selecciona primero la que llegó antes. Esto no afecta la cantidad de jornadas que se pueden asignar, ya que ambas solicitudes liberan la unidad al mismo tiempo, pero permite obtener resultados consistentes en cada ejecución.
+
+- **Tres soluciones escritas a mano.** Se decidió desarrollar las tres soluciones sin utilizar librerías especializadas en intervalos u optimización. Así es posible entender cómo funciona cada una, revisar sus pasos y contar las operaciones que realiza, facilitando una comparación más clara entre ellas. Para ordenar las solicitudes se utiliza la función `sorted` de Python, en lugar de implementar un algoritmo de ordenamiento propio.
+
+- **Datos sintéticos reproducibles.** La función `generar_instancia` utiliza un generador propio (`random.Random(semilla)`) para crear las solicitudes. Esto permite que, al utilizar la misma cantidad de solicitudes (`n`) y la misma semilla, se obtengan siempre los mismos datos. De esta manera, las tres soluciones trabajan con exactamente la misma información. Además, las solicitudes se entregan en el orden en que fueron generadas, que es el que necesita la regla actual.
+
+- **Horizonte que crece con n.** El tiempo disponible para las jornadas se calcula con la fórmula `n · 180` minutos. Esto se hace porque, si el tiempo disponible fuera siempre el mismo, al aumentar la cantidad de solicitudes sería más probable que todas se cruzaran. Al aumentar también el tiempo disponible, se mantiene una proporción similar entre las solicitudes y el tiempo, lo que permite comparar mejor los resultados. Las duraciones de las jornadas van de 1 a 8 horas y los pacientes de alto riesgo se asignan aleatoriamente entre 1 y 40, aunque este dato no influye en la selección de las jornadas.
+
+- **Contadores separados de las funciones medidas.** En `medicion.py`, las funciones `contar_voraz`, `contar_regla_actual` y `contar_exhaustivo` permiten conocer cuántas operaciones realiza cada solución. Para hacerlo, repiten la lógica de las estrategias y llevan un registro de las operaciones sin modificar las funciones originales. Esto permite medir el tiempo de ejecución de las soluciones por separado, sin que el conteo afecte los resultados. En cada prueba también se comprueba que los contadores produzcan el mismo resultado que las funciones originales.
+
+- **Cómo se cronometra.** Para medir el tiempo de ejecución se utiliza `time.perf_counter` y se realizan varias repeticiones, tomando como resultado la mediana de los tiempos obtenidos. Esto ayuda a evitar que situaciones momentáneas del sistema alteren demasiado las mediciones. Además, se desactiva el recolector de basura durante las pruebas y no se incluye el tiempo que tarda en generarse la información.
+
+- **Verificación dentro del experimento.** En `medicion.py` se realizan comprobaciones durante cada prueba para verificar que las jornadas seleccionadas no se crucen, que la regla actual no obtenga un resultado mejor que la estrategia voraz y que la voraz coincida con la solución exhaustiva cuando ambas se ejecutan con el mismo tamaño de solicitudes. Por el alto costo de procesamiento de esta última, solo se realizan mediciones hasta `n = 20`.
+
+- **Qué cubren las pruebas.** En `pruebas.py` se comprueba el funcionamiento de las soluciones en diferentes situaciones: cuando no hay solicitudes, cuando solo hay una, cuando ninguna se cruza y cuando todas se cruzan. También se revisa el comportamiento de `hay_cruce` en los extremos de los intervalos `[inicio, fin)`, el ejemplo de seis jornadas presentado en la sección 3 y 30 instancias aleatorias. En estas últimas se verifica que la estrategia voraz coincida con la exhaustiva, que no existan cruces y que la regla actual no supere el resultado de la voraz. Finalmente, se incluye un contraejemplo en el que la regla actual acepta 1 jornada, mientras que la estrategia voraz permite seleccionar 4.
+
 # 5. Evaluación del desempeño
 
 # 6. Análisis comparativo
