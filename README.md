@@ -152,6 +152,63 @@ El código se encuentra en `src/jornadas_unidades/`. Cada archivo tiene una func
 
 # 5. Evaluación del desempeño
 
+## 5.1 Complejidad temporal y espacial
+
+En este apartado, n representa la cantidad de solicitudes de una subregión. El espacio se refiere a la memoria adicional que necesita cada solución para funcionar, sin incluir la lista de entrada.
+
+**Estrategia voraz (`seleccionar_jornadas`).** Esta solución tiene dos pasos principales. Primero, organiza las solicitudes según su hora de finalización utilizando `sorted`. Python utiliza Timsort para este proceso, cuyo costo es del orden de n log n comparaciones en el peor caso. Después, recorre las solicitudes una sola vez para decidir cuáles acepta. En cada vuelta compara la hora de inicio de la solicitud actual con la hora de finalización de la última jornada aceptada (`elegidas[-1]`) y, si cumple la condición, la agrega con `append`. Como este recorrido tiene un costo constante por solicitud, su costo total es Θ(n). Por lo tanto, el ordenamiento es el paso que más tiempo consume y la complejidad temporal es Θ(n log n).
+
+El tiempo también depende de cómo llegan organizadas las solicitudes. Si ya están ordenadas por hora de finalización, Timsort reconoce ese orden y el costo total baja a Θ(n). Si llegan en un orden diferente, se mantiene en Θ(n log n). En cuanto al espacio, `sorted` crea una nueva lista con n elementos y `elegidas` puede almacenar hasta n jornadas, por lo que la complejidad espacial es Θ(n).
+
+**Regla actual (`asignar_por_llegada`).** Esta solución conserva el orden de llegada de las solicitudes y compara cada una con las jornadas que ya fueron aceptadas. Si en ese momento hay a jornadas aceptadas, puede realizar hasta a comparaciones, y a nunca supera el total de jornadas aceptadas (k). Por eso, el número máximo de comparaciones está limitado por n·k.
+
+En el peor caso, ninguna solicitud se cruza con otra y todas son aceptadas. Esto significa que cada nueva solicitud debe compararse con todas las anteriores. El total de comparaciones sería 0 + 1 + … + (n−1) = n(n−1)/2, lo que corresponde a Θ(n²).
+
+En el mejor caso, todas las solicitudes se cruzan con la primera jornada aceptada. En esta situación, cada una se rechaza desde la primera comparación y el costo es Θ(n).
+
+En nuestras pruebas, aproximadamente el 39 % de las solicitudes son aceptadas (6 221 de 16 000 cuando n = 16 000). Esta proporción se mantiene al cambiar el tamaño de las instancias, porque el generador conserva la densidad de cruces (sección 4); con datos reales podría ser distinta. Por lo tanto, k crece proporcionalmente a n y el costo se mantiene en Θ(n²).
+
+Esto también se refleja en las mediciones, donde las operaciones realizadas equivalen aproximadamente a 0,157·n². Este valor es menor de lo que se esperaría si cada solicitud se comparara siempre con todas las jornadas aceptadas hasta ese momento, porque `all(...)` detiene las comparaciones cuando encuentra el primer cruce. Por esta razón, el crecimiento sigue siendo cuadrático, pero con una constante menor.
+
+Al finalizar, también se ordenan las k jornadas aceptadas. Este paso tiene un costo de Θ(k log k), pero no cambia la complejidad general, que sigue siendo Θ(n²). En cuanto al espacio, `aceptadas` puede almacenar hasta n jornadas y el `sorted` final crea otra lista de k elementos. Por lo tanto, la complejidad espacial es Θ(n).
+
+**Solución exhaustiva (`seleccionar_exhaustivo`).** Esta solución revisa todas las combinaciones posibles de solicitudes. Para hacerlo, recorre las 2ⁿ máscaras de bits, que representan los 2ⁿ subconjuntos que se pueden formar.
+
+En cada combinación, se revisan los n bits para construir el subconjunto correspondiente mediante una comprensión de lista. Esto tiene un costo de Θ(n) por cada máscara, independientemente de cuántas solicitudes incluya.
+
+Después se comprueba si las jornadas del subconjunto se cruzan utilizando `hay_cruce`. Esta revisión tiene un costo de O(n). Esto se debe a que el subconjunto se construye siguiendo el orden de `ordenadas`, que ya está organizado por (inicio, fin). Por eso, el `sorted` interno de `hay_cruce` recibe los datos ordenados y puede trabajar de forma lineal. Luego, también se revisan las jornadas consecutivas para identificar posibles cruces. Esta comprobación solo se realiza cuando el subconjunto supera al mejor resultado encontrado hasta ese momento.
+
+Al revisar todas las combinaciones, la complejidad temporal total es Θ(n · 2ⁿ). Si se observa únicamente la cantidad de subconjuntos explorados, que es lo que registra el contador, el crecimiento es Θ(2ⁿ).
+
+En cuanto al espacio, la solución no almacena todas las combinaciones al mismo tiempo. `range(1 << n)` genera los valores de forma progresiva y en cada vuelta solo se trabaja con un subconjunto, además de las listas `ordenadas` y `mejor`. Por esta razón, la complejidad espacial es Θ(n).
+
+**Contraste.** Las diferencias entre las tres soluciones se hacen más evidentes cuando aumenta la cantidad de solicitudes. Si n se duplica, la estrategia voraz tarda un poco más del doble (el factor es 2·(1 + 1/log₂ n)), mientras que la regla actual tarda aproximadamente cuatro veces más.
+
+La solución exhaustiva presenta un crecimiento mucho mayor. Cada vez que n aumenta en 1, la cantidad de combinaciones que debe revisar se duplica. Si n se duplica, pasando de n a 2n, el número de combinaciones se multiplica por 2ⁿ y el tiempo teórico (n·2ⁿ) por 2ⁿ⁺¹. Por ejemplo, de n = 10 a n = 20 las operaciones se multiplican por 1 024 y el tiempo teórico por 2 048 (en nuestras mediciones, ×1 025 y ×1 734).
+
+Esta diferencia no depende simplemente de que una solución tenga constantes de tiempo más altas que otra. El crecimiento de una función exponencial es mucho más rápido que el de una función polinomial. Por eso, aunque la solución exhaustiva tenga un buen comportamiento en casos pequeños, no resulta práctica para cantidades grandes de solicitudes. Su utilidad principal es servir como referencia para comprobar la optimalidad de las otras soluciones en instancias pequeñas.
+
+| Estrategia | Tiempo | Espacio adicional |
+|---|---|---|
+| Voraz | Θ(n log n) (Θ(n) si la entrada ya viene ordenada por hora de fin) | Θ(n) |
+| Regla actual | Θ(n²) en el peor caso (Θ(n) en el mejor); Θ(n²) en nuestros datos | Θ(n) |
+| Exhaustiva | Θ(n · 2ⁿ) | Θ(n) |
+
+## 5.2 Cómo se verificó
+
+**Qué se verificó y dónde.** La verificación está en dos archivos.
+
+- En [pruebas.py](src/jornadas_unidades/pruebas.py) se revisan los casos límite (entrada vacía, un elemento, nada se cruza y todo se cruza), el borde `[inicio, fin)` en `hay_cruce`, el ejemplo de seis jornadas resuelto a mano en la sección 3 y el contraejemplo donde la regla actual acepta 1 jornada y la voraz 4. Además, 30 instancias aleatorias de 6 a 12 solicitudes comprueban que la voraz obtiene el mismo número de jornadas que la exhaustiva, que ninguna solución deja jornadas cruzadas, que las jornadas elegidas por la voraz pertenecen a las solicitudes originales y que la regla actual nunca supera a la voraz.
+- En [medicion.py](src/jornadas_unidades/medicion.py), para cada tamaño y cada semilla donde corren las tres soluciones, `verificar` comprueba que no haya cruces, que la regla actual no supere a la voraz y que la voraz iguale a la exhaustiva. También se comprueba que los contadores de operaciones obtengan el mismo número de jornadas que las funciones originales. En la exhaustiva, el contador da exactamente 2ⁿ − 1 subconjuntos en todos los tamaños medidos, que es el valor que se esperaría.
+
+**Resultado.** `pruebas.py` terminó con el mensaje "Todas las pruebas pasaron." y el experimento completo de `medicion.py` corrió sin que saltara ningún `assert`. Para confirmar que las pruebas detectan errores, cambiamos `>=` por `>` en `seleccionar_jornadas` (sin guardar el cambio en el repositorio): `pruebas.py` falló en `probar_ejemplo_a_mano`, el ejemplo de seis jornadas, donde cada jornada empieza justo cuando termina la anterior y la que empieza a las 10:00 (600 min) quedaba rechazada.
+
+**Qué no cubre.** La comparación directa con la exhaustiva llega hasta n = 12 en las pruebas y hasta n = 20 en la medición, porque más allá la exhaustiva no termina en un tiempo razonable. Para tamaños mayores, incluido el rango real de 40 a 120 solicitudes, la corrección de la voraz se apoya en el argumento de la propiedad de elección voraz (sección 3) y no en una comprobación directa. Las pruebas comparan el número de jornadas, no que los conjuntos elegidos sean idénticos, porque pueden existir varias programaciones óptimas. Tampoco hay una prueba dedicada a los empates en la hora de fin, que solo afectan a cuál jornada se elige y no a cuántas. Por último, no se valida que cada solicitud cumpla `inicio < fin`: el código lo da por supuesto, como la sección 2, y en los datos de prueba se cumple por construcción, porque `generar_instancia` usa una duración mínima de 60 minutos.
+
+## 5.3 Pruebas experimentales 
+## 5.4 Lo medido frente a lo esperado 
+## 5.5 Escala real, ventana y energía
+
 # 6. Análisis comparativo
 ## Un contraejemplo calculado
 Se supone que una unidad móvil recibe las siguientes cinco solicitudes. La columna orden de llegada indica el orden en que fueron recibidas las solicitudes.
