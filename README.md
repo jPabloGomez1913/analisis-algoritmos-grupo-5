@@ -276,6 +276,35 @@ La gráfica superpone el tiempo medido con la curva c · n log n, escalada con l
 
 ## 5.5 Escala real, ventana y energía
 
+**Volumen real y ventana de referencia.** El caso contempla entre 40 y 120 solicitudes al mes por cada subregión. En total son nueve subregiones, cada una con su propia unidad, y el proceso se ejecuta de forma secuencial en un único servidor. El Caso 2 establece un tiempo máximo para las operaciones 1 y 2, pero no define uno para esta operación. Por eso, se toma como referencia una ventana de 1 segundo para programar las nueve subregiones juntas, considerando el tiempo que razonablemente esperaría el coordinador. También se utiliza un mes como límite máximo, ya que esta actividad se realiza mensualmente.
+
+**Tiempo a escala real.** La cantidad real de solicitudes (40 a 120) está dentro de los tamaños que se probaron. Por esta razón, para la voraz y la regla actual se utilizan directamente los tiempos medidos para n = 40 y n = 120, multiplicándolos por las nueve subregiones. Estos tiempos no incluyen la lectura de los datos, ya que, según el supuesto de la sección 2, la información ya está cargada en memoria.
+
+En el caso de la solución exhaustiva, sí es necesario hacer una estimación, porque solo se midió hasta n = 20, donde tardó aproximadamente 5,7 s (unos 5,4 µs por subconjunto). Para calcular cuánto tardaría con cantidades mayores, se utilizan dos modelos: uno supone que el tiempo aumenta según 2ⁿ (cota inferior), manteniendo el mismo costo por cada subconjunto revisado, y el otro considera que aumenta según n · 2ⁿ (cota superior), suponiendo que el costo también crece con la cantidad de solicitudes. Como se explicó en la sección 5.4, el costo por subconjunto aumenta más lentamente que n, por lo que el tiempo real estaría entre estos dos valores.
+
+| Estrategia | Una subregión | Nueve subregiones | Fracción de 1 s |
+|---|---|---|---|
+| Voraz | de 1,07×10⁻⁵ a 3,53×10⁻⁵ s | de 9,6×10⁻⁵ a 3,2×10⁻⁴ s | de 0,01 % a 0,03 % |
+| Regla actual | de 7,58×10⁻⁵ a 3,76×10⁻⁴ s | de 6,8×10⁻⁴ a 3,4×10⁻³ s | de 0,07 % a 0,34 % |
+| Exhaustiva, n = 40 | de 69 a 138 días | de 1,7 a 3,4 años | más de 10⁷ veces la ventana |
+| Exhaustiva, n = 120 | de 10²³ a 10²⁴ años | — | — |
+
+La estrategia voraz y la regla actual cumplen fácilmente con el tiempo establecido, ya que ambas terminan en muy poco tiempo. Aunque la regla actual es entre 7 y 11 veces más lenta que la voraz, las dos completan el proceso en milisegundos.
+
+En cambio, la solución exhaustiva no resulta adecuada para este caso. Con 40 solicitudes, una sola subregión tardaría más de un mes en completar el proceso. Con 120 solicitudes, el tiempo estimado sería incluso mayor que la edad del universo (aproximadamente 1,4×10¹⁰ años).
+
+**Energía.** Para calcular el consumo de energía se toma como referencia el servidor de aproximadamente 380 W establecido en las restricciones (0,380 kW). Se utiliza la fórmula kWh = kW × h para calcular el consumo de una ejecución mensual y luego se multiplica por 12 para obtener una estimación anual. Para estos cálculos se supone que el servidor mantiene ese consumo de energía durante la ejecución, sin importar la carga de trabajo, y no se incluye el consumo de los sistemas de refrigeración.
+
+| Estrategia | Energía por mes | Energía al año |
+|---|---|---|
+| Voraz | de 1,0×10⁻⁸ a 3,4×10⁻⁸ kWh | de 1,2×10⁻⁷ a 4,0×10⁻⁷ kWh (de 0,4 a 1,5 J) |
+| Regla actual | de 7,2×10⁻⁸ a 3,6×10⁻⁷ kWh | de 8,6×10⁻⁷ a 4,3×10⁻⁶ kWh (de 3 a 15 J) |
+| Exhaustiva, n = 40 | de 5 700 a 11 400 kWh | de 68 000 a 136 000 kWh, si pudiera ejecutarse |
+
+La estrategia voraz y la regla actual tienen un consumo de energía muy bajo. Aunque existe una diferencia entre ambas, no es lo suficientemente importante como para decidir cuál utilizar. Esa decisión depende principalmente de la calidad de los resultados, como se explica en la sección 6.
+
+Por otro lado, la solución exhaustiva requiere tanto tiempo y recursos que no alcanzaría a terminar la programación de un mes antes de que comenzara el siguiente. Por eso, los valores de consumo de energía que aparecen en la tabla representan una estimación mínima de lo que implicaría intentar ejecutar esta solución.
+
 # 6. Análisis comparativo
 ## Un contraejemplo calculado
 Se supone que una unidad móvil recibe las siguientes cinco solicitudes. La columna orden de llegada indica el orden en que fueron recibidas las solicitudes.
