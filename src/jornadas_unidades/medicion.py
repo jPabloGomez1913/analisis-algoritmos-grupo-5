@@ -12,6 +12,7 @@ Uso (desde src/jornadas_unidades):
 """
 
 import csv
+import gc
 import math
 import statistics
 import time
@@ -41,10 +42,10 @@ CARPETA_GRAFICAS = RAIZ / "graficas" / OPERACION
 
 # Tamaños comunes: las tres soluciones corren sobre ellos, así que sirven para
 # verificar que voraz y exhaustiva coinciden. Incluyen parejas donde el
-# segundo es el doble del primero (4-8, 6-12, 8-16). Los tamaños grandes solo
+# segundo es el doble del primero (4-8, 6-12, 8-16, 10-20). Los tamaños grandes solo
 # los corren la voraz y la regla actual (la exhaustiva ya no termina); el
 # rango real del caso (40 a 120 solicitudes por subregión) está incluido.
-TAMANOS_COMUNES = [4, 6, 8, 10, 12, 14, 16, 18]
+TAMANOS_COMUNES = [4, 6, 8, 10, 12, 14, 16, 18, 20]
 TAMANOS_GRANDES = [40, 80, 120, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000]
 TAMANOS_SOLO_VORAZ = [32_000, 64_000]
 
@@ -206,7 +207,8 @@ def medir_tiempo(
     Ejecuta la estrategia varias veces con time.perf_counter y devuelve la
     mediana, que es menos sensible que el promedio a interrupciones del
     sistema operativo. Solo se cronometra la ejecución, nunca la generación
-    de los datos.
+    de los datos. Se desactiva el recolector de basura durante la medición
+    (igual que hace timeit) para que sus pausas no metan ruido en el tiempo.
 
     Args:
         estrategia: función que recibe las solicitudes y devuelve las jornadas.
@@ -218,10 +220,14 @@ def medir_tiempo(
     """
     tiempos: list[float] = []
     resultado: list[Jornada] = []
-    for _ in range(repeticiones):
-        inicio = time.perf_counter()
-        resultado = estrategia(instancia)
-        tiempos.append(time.perf_counter() - inicio)
+    gc.disable()
+    try:
+        for _ in range(repeticiones):
+            inicio = time.perf_counter()
+            resultado = estrategia(instancia)
+            tiempos.append(time.perf_counter() - inicio)
+    finally:
+        gc.enable()
     return statistics.median(tiempos), resultado
 
 
