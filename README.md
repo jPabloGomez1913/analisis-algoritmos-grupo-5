@@ -233,7 +233,47 @@ En operaciones, la exhaustiva llega a 1 048 575 con n = 20, mientras que la vora
 
 **Archivos.** El generador está en [datos.py](src/jornadas_unidades/datos.py), el experimento en [medicion.py](src/jornadas_unidades/medicion.py) y las tablas en [resultados/jornadas_unidades/](resultados/jornadas_unidades/): `tiempos.csv`, `contraste_complejidad.csv` y `factores_duplicacion.csv`. En `graficas/jornadas_unidades/` hay también una gráfica por estrategia que compara lo medido con la curva teórica, que se usa en la sección 5.4.
 
-## 5.4 Lo medido frente a lo esperado 
+## 5.4 Lo medido frente a lo esperado
+
+**Crecimiento al duplicar n.** Si la complejidad de la sección 5.1 es correcta, al pasar de n a 2n cada estrategia debe multiplicar su costo por un factor conocido. La tabla compara ese factor esperado con el observado en parejas de tamaños medidas (fuente: `factores_duplicacion.csv`).
+
+| Estrategia | n → 2n | Operaciones (observado) | Operaciones (esperado) | Tiempo (observado) | Tiempo (esperado) |
+|---|---|---|---|---|---|
+| Voraz | 16 000 → 32 000 | ×2,15 | ×2,14 | ×2,25 | ×2,14 |
+| Voraz | 32 000 → 64 000 | ×2,14 | ×2,13 | ×2,54 | ×2,13 |
+| Regla actual | 2 000 → 4 000 | ×3,95 | ×4,00 | ×4,03 | ×4,00 |
+| Regla actual | 8 000 → 16 000 | ×4,02 | ×4,00 | ×3,57 | ×4,00 |
+| Exhaustiva | 6 → 12 | ×65 | ×64 | ×126 | ×128 |
+| Exhaustiva | 8 → 16 | ×257 | ×256 | ×332 | ×512 |
+| Exhaustiva | 10 → 20 | ×1 025 | ×1 024 | ×1 734 | ×2 048 |
+
+Los factores de tiempo se alejan más de lo esperado que los de operaciones, y lo hacen en ambos sentidos: por encima en la voraz (×2,54 frente a ×2,13 de 32 000 a 64 000) y por debajo en la regla actual (×3,57 frente a ×4,00 de 8 000 a 16 000). Una desviación que cambia de signo apunta a ruido de medición. En la exhaustiva, en cambio, el tiempo queda siempre por debajo de lo esperado (×126 frente a ×128, ×332 frente a ×512 y ×1 734 frente a ×2 048); una desviación sistemática apunta al algoritmo y no al ruido, y se explica más abajo.
+
+Los exponentes empíricos (ajuste de valor ≈ c · nᵏ con n ≥ 250) son:
+
+| Estrategia | k en tiempo | k en operaciones | Esperado |
+|---|---|---|---|
+| Voraz | 1,08 | 1,13 | ≈ 1,12 para n log n en estos tamaños |
+| Regla actual | 1,94 | 1,99 | 2 |
+
+**Voraz.** La complejidad Θ(n log n) predice que al duplicar n el costo se multiplica por 2·(1 + 1/log₂ n), algo más de 2 y cada vez menos, y es lo que se observa en las operaciones (×2,15 y ×2,14). El exponente da 1,13 y 1,08 y no exactamente 1 porque la pendiente de n log n en escala log-log no es constante: vale 1 + 1/ln n y baja de 1,18 en n = 250 a 1,09 en n = 64 000. Una recta ajustada a n log n sobre esos mismos tamaños da 1,12, casi igual al 1,13 de las operaciones; un algoritmo lineal daría 1,00. El 1,08 del tiempo queda 0,04 por debajo de la teoría, una diferencia pequeña que atribuimos al ruido de la medición (la mediana de tres a cinco repeticiones no lo elimina del todo).
+
+![Voraz: medido vs. teórico](graficas/jornadas_unidades/voraz_teorica.png)
+
+La gráfica superpone el tiempo medido con la curva c · n log n, escalada con la constante del mayor tamaño medido.
+
+**Regla actual.** Los factores (×3,95 y ×4,02) y los exponentes (1,99 en operaciones, 1,94 en tiempo) están cerca de 4 y de 2, como corresponde a Θ(n²). El cociente operaciones/n² se estabiliza en 0,157 desde n = 1 000 y es algo mayor con n pequeños (0,18 con n = 40), porque los términos de orden menor (la comparación mínima de cada solicitud y el ordenamiento final de las aceptadas) pesan más cuando n es chico.
+
+![Regla actual: medido vs. teórico](graficas/jornadas_unidades/regla_actual_teorica.png)
+
+**Exhaustiva.** Las operaciones coinciden casi exactamente con 2ⁿ (×65, ×257 y ×1 025, que es 2ⁿ + 1 con n = 6, 8 y 10, porque el contador suma 2ⁿ − 1 subconjuntos), de modo que el crecimiento exponencial está confirmado. El tiempo crece menos que lo teórico: entre n = 8 y n = 16 se multiplicó por 332 y no por 512. Como los subconjuntos recorridos sí se multiplicaron por 257, la diferencia está en el costo de cada subconjunto, que creció ×1,29 (332 / 257) y no ×2 como supone Θ(n) por subconjunto. La explicación más probable es que ese costo tiene una parte fija (avanzar el ciclo, crear la lista, comparar longitudes, llamar a `hay_cruce`) y otra proporcional a n; con n pequeño la parte fija pesa mucho, así que duplicar n aumenta el costo por subconjunto menos de lo que predice la fórmula. Los datos de `tiempos.csv` lo respaldan: el costo por subconjunto (tiempo ÷ operaciones) pasa de 2,2 µs con n = 4 a 5,4 µs con n = 20, es decir, crece ×2,5 mientras n crece ×5, menos que proporcional. Es una diferencia de constantes y términos de orden menor, no del factor exponencial.
+
+![Exhaustiva: medido vs. teórico](graficas/jornadas_unidades/exhaustivo_teorica.png)
+
+**Qué dicen las constantes.** Si la complejidad derivada en 5.1 es correcta, la constante c = medido / f(n) debe mantenerse casi estable al crecer n (`contraste_complejidad.csv`). En operaciones lo hace: en la voraz va de 0,95 con n = 40 a 0,98 con n = 64 000 (una variación de 3 %); en la regla actual se estabiliza en 0,157 desde n = 1 000; y en la exhaustiva tiende a 1 (0,9375 con n = 4 y 0,999999 con n = 20). En tiempo, c también se mantiene en un rango estrecho y sin una tendencia que crezca con n: en la voraz (n ≥ 250) va de 2,9×10⁻⁸ a 6,5×10⁻⁸ s (el máximo es 2,2 veces el mínimo), en la exhaustiva (n ≥ 10) de 2,7×10⁻⁷ a 4,0×10⁻⁷ (1,5 veces) y en la regla actual (n ≥ 250) de 2,1×10⁻⁸ a 3,4×10⁻⁸ (1,6 veces), con una baja suave después de n = 1 000 que concuerda con su exponente de 1,94: con ese exponente c cae alrededor de 20 % entre n = 250 y n = 16 000, y lo observado es 17 %. Si, por ejemplo, la voraz fuera en realidad cuadrática, c cambiaría unas 130 veces entre n = 250 y n = 64 000; aquí cambia 2,2 veces. Una complejidad mal derivada produciría una constante que crece o decrece de forma sistemática.
+
+**Ruido frente a algoritmo.** Atribuimos al ruido de la medición las desviaciones del tiempo que las operaciones no muestran: el exponente de 1,08 en la voraz y su tramo casi plano entre n = 1 000 y n = 2 000. Atribuimos al algoritmo y a sus constantes las diferencias que aparecen también en las operaciones: el factor algo mayor que 2 de la voraz, la constante mayor de la regla actual con n pequeños y el 2ⁿ + 1 de la exhaustiva. La del costo por subconjunto de la exhaustiva es una diferencia de constantes que solo se ve en el tiempo.
+
 ## 5.5 Escala real, ventana y energía
 
 # 6. Análisis comparativo
