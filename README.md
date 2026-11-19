@@ -376,14 +376,64 @@ En cuanto al tiempo de ejecución y al consumo de energía, la diferencia entre 
 
 # 7. Implicaciones éticas, sociales y ambientales
 
-# 8. Conclusiones (pendiente...)
+## Consumo energético
+
+**Comparación y proyección.** Estimamos la energía de la operación 3 con kWh = kW × h, tomando 0,38 kW (el servidor de aproximadamente 380 W de las restricciones) y los tiempos medidos de la sección 5, y la proyectamos a un año con 108 ejecuciones (9 subregiones × 12 meses, todas con el mismo n).
+
+| n por subregión | Voraz (kWh al año) | Regla actual (kWh al año) | Diferencia anual |
+|---|---|---|---|
+| 40 | 1,2×10⁻⁷ | 8,6×10⁻⁷ | 7,4×10⁻⁷ kWh (≈ 2,7 J) |
+| 80 | 2,4×10⁻⁷ | 2,3×10⁻⁶ | 2,0×10⁻⁶ kWh (≈ 7,3 J) |
+| 120 | 4,0×10⁻⁷ | 4,3×10⁻⁶ | 3,9×10⁻⁶ kWh (≈ 14 J) |
+
+La regla actual consume entre 7 y 11 veces más energía que la voraz, pero la diferencia anual es del orden de microkWh, de unos pocos julios, y es despreciable: la energía de esta operación no es un argumento para preferir una estrategia sobre la otra.
+
+**Dónde está el impacto.** El efecto que sí importa es el de las jornadas atendidas. En nuestras instancias sintéticas, la voraz programa 2, 3,7 y 4,6 jornadas más por subregión al mes con n = 40, 80 y 120, es decir, entre 18 y 41 jornadas más al mes en las nueve subregiones (entre 216 y unas 500 al año). Es una estimación, porque los datos son sintéticos. El consumo de las unidades móviles y de sus desplazamientos queda fuera de este cálculo, que solo cubre la ejecución del algoritmo.
+
+**Supuestos.**
+
+- Los tiempos se midieron en nuestro computador, no en el servidor de la Secretaría, y no incluyen la lectura de los datos.
+- Se aplican los 380 W durante toda la ejecución, como potencia constante, y no se cuenta el consumo del servidor en reposo.
+- Se suponen 108 ejecuciones al año, todas con el mismo n.
+
+**Exhaustiva.** No se incluye en la comparación anual porque no termina en un tiempo útil a escala real (sección 5.5): según la extrapolación, con n = 40 una sola subregión tardaría entre 4 y 7 meses, y con n = 80 o n = 120 mucho más que la edad del universo.
+
+**Pendiente para la entrega del 23 de noviembre:** preguntas de impacto del caso (personas, normativa y crecimiento), consecuencias sobre las personas, marco normativo con sus fuentes y sostenibilidad de la decisión.
+
+# 8. Conclusiones (Pendiente para la entrega del 23 de noviembre)
 
 # 9. Instrucciones para reproducir el experimento
 
 ## ¿Cómo preparar el entorno para correr los programas?
+
 1. Inicie el entorno virtual, ejecute los siguientes comandos en CMD:
     - `python -m venv venv` para crear el entorno virtual
     - `venv\Scripts\activate` para iniciar el entorno en Windows
     - `source venv/bin/activate` para iniciar el entorno en Linux/Mac
 
 2. Instale las librerías del archivo de requerimientos en caso de no tenerlas instaladas. Ejecute en la terminal `pip install -r requirements.txt`
+
+3. Ejecute las pruebas, desde la carpeta de la operación:
+
+   ```
+   cd src/jornadas_unidades
+   python pruebas.py
+   ```
+
+   Debe imprimir `Todas las pruebas pasaron.`
+
+4. Ejecute la medición (tarda unos minutos; la parte más lenta es la exhaustiva con n = 20):
+
+   ```
+   python medicion.py
+   ```
+
+   Genera las tablas en `resultados/jornadas_unidades/` (`tiempos.csv`, `contraste_complejidad.csv` y `factores_duplicacion.csv`) y las gráficas en `graficas/jornadas_unidades/`. Las instancias usan semilla fija (11, 23 y 37), así que el número de operaciones y las jornadas elegidas se repiten exactamente; los tiempos cambian según el computador.
+
+5. Para las cifras de pacientes de la sección 6:
+
+   ```
+   python pacientes.py
+   ```
+
+   Escribe `resultados/jornadas_unidades/pacientes.csv`.
