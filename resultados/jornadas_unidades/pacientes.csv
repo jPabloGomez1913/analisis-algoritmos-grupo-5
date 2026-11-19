@@ -1,0 +1,4 @@
+n,pacientes_voraz,pacientes_regla_actual,pacientes_optimo_ponderado,voraz_sobre_optimo,regla_sobre_optimo
+40,361,293,454,0.795,0.646
+80,666,667,904,0.736,0.737
+120,1011,958,1316,0.768,0.728
