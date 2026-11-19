@@ -69,8 +69,8 @@ Para representar el funcionamiento del algoritmo, supongamos que una unidad móv
 En este ejemplo, las solicitudes ya se encuentran ordenadas de menor a mayor hora de finalización:
 
 `[1, 2, 3, 4, 5, 6]`
-### Paso 2: Selecccionar la primera actividad
-Se selecciona la primera activdad del paso anterior, es decir, la que tiene menor hora de finalización:
+### Paso 2: Seleccionar la primera actividad
+Se selecciona la primera actividad del paso anterior, es decir, la que tiene menor hora de finalización:
 
 `Jornada 1 (08:00 - 10:00)`
 ### Paso 3: Evaluar la siguiente jornada (jornada 2)
@@ -325,7 +325,7 @@ Después de que la organización procese las solicitudes en el orden en que fuer
 
 De esta manera, la organización termina programando únicamente la jornada A, aunque existen otras solicitudes que podrían haberse atendido de manera consecutiva.
 ### Escenario óptimo
-Para maximizar el número de jornadas, se seleccionan las solicitudes compatibles que permiten aprovechar mejor el tiempo disponible. Se escoge inicialmente la solicitud con fecha de finalización más pronta, y se seleccionan posteriormente las solicitudes que tengas la fecha de finalización más pronto a la fecha de inicio de la última solicitud aceptada. En la tabla a continuación, se muestran las solicitudes ordenadas por fecha de finalización:
+Para maximizar el número de jornadas, se seleccionan las solicitudes compatibles que permiten aprovechar mejor el tiempo disponible. Se escoge inicialmente la solicitud con fecha de finalización más pronta, y se seleccionan posteriormente las solicitudes que tengan la fecha de finalización más pronto a la fecha de inicio de la última solicitud aceptada. En la tabla a continuación, se muestran las solicitudes ordenadas por fecha de finalización:
 | Orden de llegada | Solicitud | Inicio | Finalización |
 | ---------------- | --------- | ------ | ------------ |
 | 2                | B         | 08:00  | 10:00        |
@@ -335,12 +335,12 @@ Para maximizar el número de jornadas, se seleccionan las solicitudes compatible
 | 5                | E         | 14:00  | 16:00        |
 
 1. Solicitud B: se **acepta** porque no existen jornadas previamente programadas. Ocupa el intervalo de `08:00 a 10:00`.
-2. Solicitud C: se **acepta** porque su fecha de finalización es mayor o igual a la fecha de inicio de la solicitud previamente aceptada. Ocupa el intervalo de `10:00 a 12:00`.
+2. Solicitud C: se **acepta** porque su fecha de inicio (10:00) es mayor o igual a la fecha de finalización de la solicitud previamente aceptada (B, 10:00). Ocupa el intervalo de `10:00 a 12:00`.
 3. Solicitud D: se **acepta**. Ocupa el intervalo de `12:00 a 14:00`.
 4. Solicitud A: se **rechaza** porque su fecha de inicio es menor a la fecha de finalización de la solicitud previamente aceptada `08:00 < 14:00`.
 5. Solicitud E: se **acepta**. Ocupa el intervalo de `14:00 a 16:00`.
 
-Esta solución óptima acepta entonces las solicitudes [B, C, D y E], un total de `4 `solicitudes aceptadas; `3` más comparadas con las solicutes que hubieran sido aceptadas en usando el escenario actual.
+Esta solución óptima acepta entonces las solicitudes [B, C, D y E], un total de `4 `solicitudes aceptadas; `3` más comparadas con las solicitudes que hubieran sido aceptadas en usando el escenario actual.
 ## La condición contraria
 Actualmente, todas las jornadas tienen el mismo valor para el algoritmo: cada jornada aceptada aporta una unidad al objetivo, independientemente de cuántos pacientes de alto riesgo tenga pendientes el municipio.
 
@@ -353,7 +353,26 @@ En este escenario:
 - Una jornada que termina primero ya no sería necesariamente la mejor elección, porque podría atender a pocos pacientes frente a otra jornada más extensa que beneficie a muchos más.
 
 La elección entre una estrategia voraz y una estrategia de programación dinámica depende del objetivo que se pretenda optimizar. Si se busca maximizar el número de jornadas, se recomienda la estrategia voraz de menor hora de finalización. Si se busca maximizar la cantidad de pacientes de alto riesgo atendidos, se recomienda la programación dinámica para selección ponderada de intervalos.
+
 ## Recomendación
+
+**Estrategia que se adopta.** Para la operación 3 recomendamos utilizar la estrategia voraz de menor hora de finalización, siempre que la Secretaría mantenga como objetivo principal maximizar la cantidad de jornadas por unidad móvil. Para este propósito, es la única de las tres soluciones que garantiza el mejor resultado y, al mismo tiempo, tiene un tiempo de ejecución adecuado para el volumen real de solicitudes. Su resultado óptimo se comprobó mediante la comparación con la solución exhaustiva hasta n = 20.
+
+**Qué ganaría la organización.** Al comparar la estrategia voraz con el procedimiento actual, que asigna las jornadas según el orden de llegada, se observa que la voraz permite atender entre un 10 y un 13 % más de jornadas en nuestras pruebas con datos sintéticos. Por ejemplo, con n = 120, se obtienen 51,3 jornadas frente a 46,7 por subregión al mes, es decir, 4,6 jornadas adicionales.
+
+Sin embargo, estos resultados son estimaciones, ya que se utilizaron datos generados artificialmente. En la práctica, la diferencia dependerá de cuántas solicitudes se crucen y de cómo estén distribuidas.
+
+Otra ventaja es que la estrategia voraz evita que una solicitud larga recibida primero impida aceptar varias jornadas más cortas que podrían aprovechar mejor el tiempo disponible. Esto se observa en el contraejemplo de este apartado, donde la regla actual acepta 1 jornada, mientras que la voraz permite aceptar 4. Además, la voraz garantiza que no se obtenga un resultado inferior al de cualquier otra programación que respete la condición de no tener cruces.
+
+En cuanto al tiempo de ejecución y al consumo de energía, la diferencia entre las dos soluciones es muy pequeña. Ambas terminan en menos de un milisegundo por subregión y la diferencia de consumo anual está entre 7×10⁻⁷ y 4×10⁻⁶ kWh (unos 3 a 14 julios). Por lo tanto, la elección de la estrategia no se justifica por el ahorro de energía, sino principalmente por la cantidad de jornadas que permite programar.
+
+**Riesgos y límites.**
+
+- **El criterio manda.** La estrategia voraz busca maximizar la cantidad de jornadas, no la cantidad de pacientes de alto riesgo atendidos. En nuestras pruebas (promedio de tres semillas), con n = 120 atiende 1 011 pacientes frente a 958 de la regla actual. Sin embargo, con n = 80 la diferencia es prácticamente nula (666 frente a 667). Además, en ningún tamaño alcanza el máximo posible cuando se da prioridad a los pacientes de alto riesgo: en el rango real (n = 40 a 120) obtiene entre el 74 y el 80 % del resultado óptimo ponderado. Estas cifras se calculan con [pacientes.py](src/jornadas_unidades/pacientes.py) y están en [pacientes.csv](resultados/jornadas_unidades/pacientes.csv). Por eso, si la Secretaría decide dar prioridad a la atención de estos pacientes, la recomendación tendría que cambiar a la programación dinámica de selección ponderada (sección “La condición contraria”).
+
+- **Más volumen o más capacidad.** Si aumenta la cantidad de solicitudes, la estrategia voraz puede manejar ese crecimiento sin mayores dificultades, ya que su complejidad es Θ(n log n). Además, cada subregión puede programarse de manera independiente. Sin embargo, si alguna subregión llega a tener más de una unidad móvil o aparecen nuevas condiciones, como disponibilidad de equipos o tiempos de traslado que no estén incluidos en la duración de las jornadas, el problema cambia y sería necesario revisar nuevamente la solución.
+
+- **Lo que los datos sintéticos dejaron fuera.** Para realizar las pruebas se generaron horarios aleatorios, con duraciones de 1 a 8 horas y cantidades de pacientes asignadas de manera independiente de la duración de cada jornada. Sin embargo, en la realidad las solicitudes pueden concentrarse en determinados días y horarios, tener duraciones más similares o presentar cancelaciones y cambios de programación. Además, el modelo considera que todas las solicitudes recibidas son válidas. Por esta razón, antes de implementar la estrategia, sería conveniente repetir la comparación utilizando solicitudes históricas reales. También se debe tener en cuenta el efecto sobre los municipios, ya que la estrategia voraz tiende a seleccionar jornadas más cortas y esto podría dejar en desventaja a los municipios que solicitan jornadas de mayor duración (este punto se desarrollará en la sección 7, pendiente para la entrega del 23 de noviembre).
 
 # 7. Implicaciones éticas, sociales y ambientales
 
