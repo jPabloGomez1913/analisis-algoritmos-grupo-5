@@ -372,7 +372,7 @@ En cuanto al tiempo de ejecución y al consumo de energía, la diferencia entre 
 
 - **Más volumen o más capacidad.** Si aumenta la cantidad de solicitudes, la estrategia voraz puede manejar ese crecimiento sin mayores dificultades, ya que su complejidad es Θ(n log n). Además, cada subregión puede programarse de manera independiente. Sin embargo, si alguna subregión llega a tener más de una unidad móvil o aparecen nuevas condiciones, como disponibilidad de equipos o tiempos de traslado que no estén incluidos en la duración de las jornadas, el problema cambia y sería necesario revisar nuevamente la solución.
 
-- **Lo que los datos sintéticos dejaron fuera.** Para realizar las pruebas se generaron horarios aleatorios, con duraciones de 1 a 8 horas y cantidades de pacientes asignadas de manera independiente de la duración de cada jornada. Sin embargo, en la realidad las solicitudes pueden concentrarse en determinados días y horarios, tener duraciones más similares o presentar cancelaciones y cambios de programación. Además, el modelo considera que todas las solicitudes recibidas son válidas. Por esta razón, antes de implementar la estrategia, sería conveniente repetir la comparación utilizando solicitudes históricas reales. También se debe tener en cuenta el efecto sobre los municipios, ya que la estrategia voraz tiende a seleccionar jornadas más cortas y esto podría dejar en desventaja a los municipios que solicitan jornadas de mayor duración (este punto se desarrollará en la sección 7, pendiente para la entrega del 23 de noviembre).
+- **Lo que los datos sintéticos dejaron fuera.** Para realizar las pruebas se generaron horarios aleatorios, con duraciones de 1 a 8 horas y cantidades de pacientes asignadas de manera independiente de la duración de cada jornada. Sin embargo, en la realidad las solicitudes pueden concentrarse en determinados días y horarios, tener duraciones más similares o presentar cancelaciones y cambios de programación. Además, el modelo considera que todas las solicitudes recibidas son válidas. Por esta razón, antes de implementar la estrategia, sería conveniente repetir la comparación utilizando solicitudes históricas reales. También se debe tener en cuenta el efecto sobre los municipios, ya que la estrategia voraz tiende a seleccionar jornadas más cortas y esto podría dejar en desventaja a los municipios que solicitan jornadas de mayor duración (este punto se desarrolla en la sección 7).
 
 # 7. Implicaciones éticas, sociales y ambientales
 
@@ -396,9 +396,58 @@ La regla actual consume entre 7 y 11 veces más energía que la voraz, pero la d
 - Se aplican los 380 W durante toda la ejecución, como potencia constante, y no se cuenta el consumo del servidor en reposo.
 - Se suponen 108 ejecuciones al año, todas con el mismo n.
 
-**Exhaustiva.** No se incluye en la comparación anual porque no termina en un tiempo útil a escala real (sección 5.5): según la extrapolación, con n = 40 una sola subregión tardaría entre 4 y 7 meses, y con n = 80 o n = 120 mucho más que la edad del universo.
+**Exhaustiva.** No se incluye en la comparación anual porque no termina en un tiempo útil a escala real (sección 5.5): según la extrapolación, con n = 40 una sola subregión tardaría entre 69 y 138 días (de 2 a 4,5 meses), y con n = 80 o n = 120 mucho más que la edad del universo.
 
-**Pendiente para la entrega del 23 de noviembre:** preguntas de impacto del caso (personas, normativa y crecimiento), consecuencias sobre las personas, marco normativo con sus fuentes y sostenibilidad de la decisión.
+## Consecuencias sobre las personas
+
+Detrás de cada solicitud hay un municipio con pacientes de alto riesgo esperando una valoración. Por eso, cambiar la regla de asignación no es solo una decisión técnica: cambia quién recibe la unidad móvil y quién no.
+
+**Quién gana.** Con la estrategia voraz se programan más jornadas en el mismo mes (entre 2 y 4,6 más por subregión al mes, como se vio en «Dónde está el impacto»), así que más municipios reciben al menos una visita. También desaparece la ventaja de llegar primero: con la regla actual, un municipio que envía su solicitud temprano puede bloquear a varios que la envían después, aunque esos tengan más pacientes pendientes. Esa ventaja suele favorecer a las alcaldías con más personal y mejor conectividad, no necesariamente a las que más lo necesitan.
+
+**Quién puede perder.** La voraz prefiere las jornadas que terminan pronto, y eso favorece a las jornadas cortas. Lo comprobamos con las mismas instancias sintéticas de la sección 5 (generadas con `datos.py`, semillas 11, 23 y 37):
+
+| n por subregión | Duración media de todas las solicitudes | Duración media elegida por la voraz | Duración media elegida por la regla actual | Jornadas de 6 h o más aceptadas (voraz / regla actual) | Jornadas de 3 h o menos aceptadas (voraz / regla actual) |
+|---|---|---|---|---|---|
+| 40 | 4,49 h | 3,50 h | 4,07 h | 23 % / 31 % | 65 % / 46 % |
+| 80 | 4,42 h | 3,35 h | 4,13 h | 17 % / 36 % | 77 % / 44 % |
+| 120 | 4,40 h | 3,26 h | 3,94 h | 18 % / 26 % | 75 % / 45 % |
+
+Como la duración incluye el desplazamiento (sección 2), las jornadas largas suelen corresponder a los municipios más alejados o con peores vías, que en general son también los rurales y los que tienen menos acceso a servicios de salud. Con la voraz, una solicitud de 6 horas o más se acepta entre 17 y 23 % de las veces, frente a 26 a 36 % con la regla actual. Además, un municipio que pide una jornada larga porque tiene muchos pacientes acumulados no recibe ninguna prioridad: el criterio cuenta jornadas, no personas. En nuestros datos la voraz atiende entre 74 y 80 % de los pacientes de alto riesgo que se podrían atender con el criterio ponderado (`pacientes.csv`), y con n = 80 atiende prácticamente los mismos que la regla actual (666 frente a 667).
+
+**Consecuencia de un error.** Si una solicitud se rechaza, los pacientes de ese municipio esperan al mes siguiente. Para un paciente de alto riesgo, un mes de retraso puede significar que su condición empeore. Si el mismo municipio queda fuera varios meses seguidos, el daño se acumula sin que nadie lo note, porque el algoritmo no recuerda lo que pasó el mes anterior.
+
+**Medidas que proponemos.**
+
+- **La decisión final la toma una persona.** El algoritmo propone la programación y el coordinador la revisa antes de publicarla. Puede cambiar una jornada por razones que el modelo no ve (una emergencia sanitaria, un brote, una vía cerrada).
+- **Seguimiento de rechazos.** Llevar un registro de las solicitudes rechazadas por municipio. Si un municipio acumula, por ejemplo, dos meses seguidos sin jornada, su siguiente solicitud se programa primero y la voraz organiza el resto alrededor de ella.
+- **Revisar el criterio cada año.** Comparar cuántos pacientes de alto riesgo quedaron sin atender con cada criterio. La programación dinámica de la selección ponderada (sección 6) también es rápida para el volumen real, así que cambiar de criterio no tiene un costo de cómputo que lo impida.
+- **Explicar la regla.** Publicar a los municipios el criterio que se usa (la jornada que termina primero) y entregar a cada uno el motivo del rechazo (con qué jornada se cruzaba). Una regla sencilla tiene la ventaja de que se puede explicar y verificar.
+
+## Marco normativo
+
+La programación de jornadas es una decisión de una entidad pública sobre el acceso a servicios de salud, así que le aplican las siguientes normas colombianas:
+
+- **Constitución Política, artículos 13 y 49.** El artículo 49 establece la atención en salud como un servicio público a cargo del Estado, con acceso garantizado a todas las personas. El artículo 13 obliga al Estado a proteger especialmente a quienes están en circunstancias de debilidad manifiesta. Una regla que deja sistemáticamente por fuera a los municipios más alejados iría en contra de ambos.
+- **Ley 1751 de 2015 (Ley Estatutaria de Salud).** Reconoce la salud como derecho fundamental. Entre sus principios (artículo 6) están la equidad y la oportunidad; el artículo 11 define sujetos de especial protección, y el artículo 24 obliga al Estado a garantizar la disponibilidad de servicios en zonas marginadas. Las unidades móviles existen precisamente para eso, de modo que el criterio de asignación no debería alejarlas de esas zonas.
+- **Ley 1581 de 2012 (protección de datos personales).** Los datos relativos a la salud son datos sensibles (artículo 5) y su tratamiento tiene requisitos especiales. La operación 3 solo necesita el número de pacientes de alto riesgo por municipio, no quiénes son. Proponemos que la plataforma reciba únicamente ese conteo, lo que respeta los principios de finalidad y de acceso restringido de la ley.
+- **Ley 1712 de 2014 (transparencia y acceso a la información pública).** Los municipios y los ciudadanos pueden pedir información sobre cómo la Secretaría toma sus decisiones. El criterio de asignación y sus resultados deberían poder explicarse y entregarse.
+- **Marco Ético para la Inteligencia Artificial en Colombia (Gobierno de Colombia, 2021).** Nuestra solución no es inteligencia artificial, pero automatiza una decisión pública. Tomamos de ese marco los principios de transparencia, explicación, intervención humana y no discriminación, que son los que inspiran las medidas del apartado anterior.
+
+## Crecimiento y sostenibilidad de la decisión
+
+**Si crece el volumen.** La voraz es Θ(n log n): con 64 000 solicitudes tardó 0,04 s en nuestras mediciones, así que aunque el número de solicitudes se multiplique varias veces, el tiempo y la energía siguen siendo despreciables. La regla actual, en cambio, es Θ(n²) y con 16 000 solicitudes ya tardaba 5,4 s. El crecimiento no es un riesgo técnico para la voraz.
+
+**Si cambian las condiciones.** Si una subregión recibe una segunda unidad móvil, si se pueden asignar jornadas entre subregiones o si hay que considerar turnos del personal, el problema cambia y la solución debe volverse a analizar y a probar (sección 6). El código está separado por estrategia y tiene pruebas automáticas, lo que facilita esa revisión.
+
+**Sostenibilidad.** Consideramos que la decisión es sostenible por tres razones: consume una cantidad de energía despreciable (sección 5.5), se puede explicar en una frase a cualquier municipio y produce siempre el mismo resultado con los mismos datos. Su principal riesgo no es técnico sino social: el sesgo contra las jornadas largas descrito arriba. Por eso la recomendación de la sección 6 va acompañada de las medidas de control propuestas en esta sección y de la condición de repetir el análisis con solicitudes históricas reales antes de adoptarla.
+
+## Fuentes
+
+- Constitución Política de Colombia (1991). Artículos 13 y 49.
+- Congreso de la República de Colombia. (2015). *Ley Estatutaria 1751 de 2015, por medio de la cual se regula el derecho fundamental a la salud y se dictan otras disposiciones*.
+- Congreso de la República de Colombia. (2012). *Ley Estatutaria 1581 de 2012, por la cual se dictan disposiciones generales para la protección de datos personales*.
+- Congreso de la República de Colombia. (2014). *Ley 1712 de 2014, por medio de la cual se crea la Ley de Transparencia y del Derecho de Acceso a la Información Pública Nacional*.
+- Presidencia de la República de Colombia. (2021). *Marco Ético para la Inteligencia Artificial en Colombia*.
 
 # 8. Conclusiones (Pendiente para la entrega del 23 de noviembre)
 
