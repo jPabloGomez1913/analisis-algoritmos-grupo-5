@@ -1,4 +1,4 @@
-### Laboratorio #4: Programación dinámica y algoritmos voraces
+# Informe técnico del proyecto final
 # 1. Presentación
 ## Caso #2: Plataforma Pulso - programación de las jornadas de las unidades móviles
 
@@ -11,6 +11,14 @@
 Grupo: 190304006-3
 
 Profesor: Santiago Suárez Cortés
+
+## Resumen ejecutivo
+
+Este informe compara dos operaciones de la Plataforma Pulso: la consolidación de resultados de laboratorio repetidos (operación 1) y la programación de jornadas de las unidades móviles (operación 3). Para la operación 1 se contrastan la búsqueda lineal usada como referencia, una tabla hash y una lista enlazada; para la operación 3 se comparan la regla de llegada, la selección voraz por hora de finalización y una búsqueda exhaustiva que sirve como oráculo en entradas pequeñas. También se evalúa, como cambio de objetivo, la programación dinámica que maximiza pacientes de alto riesgo.
+
+Las mediciones guardadas muestran que la tabla hash crece aproximadamente de forma lineal en el rango probado, mientras la lista enlazada crece cuadráticamente. Para las jornadas, la estrategia voraz obtiene el mismo máximo que la exhaustiva en instancias pequeñas y programa más jornadas que la regla actual en las instancias sintéticas del rango real. La recomendación depende del objetivo sanitario: maximizar el número de jornadas favorece la voraz; maximizar pacientes de alto riesgo requiere selección ponderada con programación dinámica. El ahorro eléctrico del proceso algorítmico es pequeño frente al impacto social de la asignación.
+
+El informe utiliza conjuntos sintéticos reproducibles. No se recibieron datos reales ni el detalle completo del caso 2 en el texto disponible; por ello, las extrapolaciones se limitan a los tamaños expresamente descritos en el repositorio y sus supuestos se declaran en cada apartado.
 
 # 2. Análisis del problema
 ## Descripción general del problema
@@ -49,7 +57,35 @@ Es importante aclarar que el criterio de optimización elegido es **maximizar el
 - Carga completa de datos en memoria.
 - Utilización de conjuntos de datos sintéticos de tamaño creciente.
 - Ejecución en un único hilo y servidor.
+### Operación 1: consolidación de resultados de laboratorio
+
+La entrada es una secuencia de resultados, cada uno con tipo y número de documento, laboratorio, lote, fecha del resultado, índice de riesgo y municipio. La identificación del paciente es la pareja (tipo de documento, número de documento). La salida debe contener exactamente un resultado por paciente: el de fecha más reciente. Si dos resultados del mismo paciente tienen la misma fecha, la implementación conserva el último que llegó. El algoritmo no modifica la secuencia original.
+
+La estrategia actual mantiene una lista de resultados consolidados y busca en ella cada paciente nuevo. Con n resultados de entrada y u pacientes distintos, su costo depende de las búsquedas lineales; en el peor caso es Θ(nu), y cuando u crece proporcionalmente a n es Θ(n²). Las restricciones de correctitud son no perder pacientes, no inventar ni alterar registros, conservar el resultado más reciente y resolver los empates de manera determinista.
+
+El generador produce una fracción configurable de resultados repetidos; las mediciones guardadas usan la tasa por defecto del 12 %, dentro del intervalo de 8 % a 15 % descrito en el código. El caso local no especifica un volumen real para esta operación, por lo que no se atribuye a consolidación el tamaño de 1 450 000 que aparece en el módulo separado de lista de llamadas.
+
 # 3. Diseño de la solución
+## Diseño para la consolidación de resultados
+
+Se comparan tres estrategias. La búsqueda lineal conserva la conducta de referencia: para cada resultado, recorre la lista consolidada hasta hallar al paciente o llegar al final. La tabla hash indexa cada paciente por (tipo de documento, número); una colisión se resuelve con encadenamiento separado. La lista enlazada guarda un nodo por paciente y busca recorriendo los nodos.
+
+En las tres alternativas, al encontrar un paciente se reemplaza su resultado solo si la fecha nueva es mayor o igual a la fecha almacenada. La igualdad implementa el supuesto de que, en un empate de fecha, prevalece el último registro recibido. El resultado se devuelve en orden de primera aparición del paciente; este orden hace reproducibles las comparaciones, aunque no afecta cuál registro queda vigente.
+
+La tabla hash es la recomendación para esta operación porque evita recorrer todos los pacientes consolidados en cada registro. Su tiempo esperado es Θ(n) con una distribución razonable de hashes y el factor de carga acotado que usa la implementación; el peor caso por colisiones sigue siendo Θ(n²). La lista enlazada es útil como contraste de una búsqueda secuencial, pero no mejora el orden de crecimiento del proceso actual.
+
+### Cambio de objetivo: maximizar pacientes de alto riesgo
+
+La función optimo_ponderado de pacientes.py ordena por hora de finalización y, para cada jornada, consulta con búsqueda binaria el último intervalo compatible. La recurrencia es mejor[i] = max(mejor[i − 1], pacientes[i] + mejor[previa(i)]). Su complejidad es Θ(n log n) en tiempo y Θ(n) en espacio; la búsqueda exhaustiva ponderada se usa como referencia solo en instancias pequeñas. Esta alternativa no es intercambiable con la voraz: resuelve un objetivo distinto.
+
+## Diseño para la programación de jornadas
+
+### Estrategias comparadas
+
+La regla actual acepta solicitudes en orden de llegada siempre que no se crucen con ninguna ya aceptada. La estrategia voraz ordena por hora de finalización y acepta una jornada si empieza cuando la última seleccionada ya terminó. La solución exhaustiva evalúa subconjuntos y elige el de mayor número de jornadas compatibles; solo es viable como referencia para n pequeño.
+
+La voraz es óptima para maximizar el número de intervalos compatibles: entre las jornadas aún disponibles, elegir la que termina antes deja un conjunto de tiempo al menos tan amplio para cualquier continuación posible. El criterio no maximiza pacientes. Cuando ese objetivo cambia, la selección ponderada de intervalos se resuelve con programación dinámica, cuya recurrencia compara excluir la solicitud i con incluir su peso más el mejor prefijo compatible. La implementación de esa variante está en pacientes.py y se usa para cuantificar la diferencia entre objetivos.
+
 ## ¿Por qué el problema admite la estrategia elegida?
 La Operación 3 de la plataforma Pulso admite una estrategia voraz porque corresponde al problema clásico de selección de actividades, cuyo objetivo es seleccionar el mayor número posible de intervalos compatibles entre sí.
 
@@ -123,6 +159,10 @@ El código se encuentra en `src/jornadas_unidades/`. Cada archivo tiene una func
 - [medicion.py](src/jornadas_unidades/medicion.py): compara el tiempo y la cantidad de operaciones de las tres soluciones con diferentes cantidades de solicitudes. También guarda los resultados en archivos CSV y genera las gráficas.
 - [pruebas.py](src/jornadas_unidades/pruebas.py): contiene pruebas con `assert` para comprobar que las tres soluciones funcionen correctamente.
 
+Para la operación 1, el código está en src/consolidacion/. modelo.py define el registro inmutable y la regla de desempate; regla_actual.py implementa la búsqueda lineal; estrategias.py contiene la tabla hash y la lista enlazada; datos.py genera registros sintéticos; pruebas.py verifica los resultados, y medicion.py produce las tablas y gráficas de desempeño.
+
+El directorio src/lista_llamadas/ contiene un tercer prototipo del equipo, pero no forma parte de las dos operaciones evaluadas en este informe. No se presentan resultados experimentales de ese módulo y sus cifras no se mezclan con las conclusiones de consolidación ni de jornadas.
+
 ## Tecnologías y herramientas utilizadas
 
 - Python 3.12.5, utilizando anotaciones de tipo y docstrings para facilitar la comprensión del código.
@@ -194,6 +234,18 @@ Esta diferencia no depende simplemente de que una solución tenga constantes de 
 | Regla actual | Θ(n²) en el peor caso (Θ(n) en el mejor); Θ(n²) en nuestros datos | Θ(n) |
 | Exhaustiva | Θ(n · 2ⁿ) | Θ(n) |
 
+### Complejidad de la operación 1
+
+Sea n el número de resultados recibidos y u el número de pacientes distintos que aparecen en ellos.
+
+| Estrategia | Tiempo | Espacio adicional | Observación |
+|---|---:|---:|---|
+| Búsqueda lineal actual | Θ(nu), peor caso Θ(n²) | Θ(u) | Cada registro busca en los pacientes ya consolidados. |
+| Tabla hash | Esperado Θ(n); peor caso Θ(n²) | Θ(n) | El costo esperado depende de una distribución razonable de hashes; encadenamiento controla colisiones sin perder datos. |
+| Lista enlazada | Θ(nu), peor caso Θ(n²) | Θ(u) | Conserva una búsqueda secuencial y añade el costo de seguir enlaces. |
+
+En la práctica, la tabla hash usa espacio para las cubetas y para almacenar las llaves y resultados, por lo que es Θ(n) en el peor caso. Las dos búsquedas secuenciales son cuadráticas cuando la cantidad de pacientes distintos crece junto con n.
+
 ## 5.2 Cómo se verificó
 
 **Qué se verificó y dónde.** La verificación está en dos archivos.
@@ -232,6 +284,25 @@ En tiempo, la exhaustiva queda muy por encima de las otras dos y solo llega hast
 En operaciones, la exhaustiva llega a 1 048 575 con n = 20, mientras que la voraz y la regla actual hacen entre 80 y 90. Estas dos se cruzan entre n = 20 y n = 40: con tamaños muy pequeños la regla actual hace menos operaciones, pero desde el cruce queda por encima y la distancia crece. Dentro del rango real, con n = 40 la voraz hace 202 operaciones frente a 294 de la regla actual, y con n = 120, 793 frente a 2 518.
 
 **Archivos.** El generador está en [datos.py](src/jornadas_unidades/datos.py), el experimento en [medicion.py](src/jornadas_unidades/medicion.py) y las tablas en [resultados/jornadas_unidades/](resultados/jornadas_unidades/): `tiempos.csv`, `contraste_complejidad.csv` y `factores_duplicacion.csv`. En `graficas/jornadas_unidades/` hay también una gráfica por estrategia que compara lo medido con la curva teórica, que se usa en la sección 5.4.
+
+### Resultados experimentales de consolidación
+
+La medición existente usa los tamaños 50, 100, 500, 1 000, 5 000 y 10 000, tres semillas (11, 23 y 37) y la mediana de cinco ejecuciones por semilla; para n = 10 000 se hacen tres repeticiones por semilla. La generación de datos queda fuera del cronómetro. En cada instancia la tabla hash y la lista enlazada producen exactamente los mismos resultados, incluidos el orden y el desempate.
+
+| n | Pacientes consolidados | Tabla hash (s) | Lista enlazada (s) | Razón lista/hash |
+|---:|---:|---:|---:|---:|
+| 50 | 45 | 0,0000292 | 0,0000634 | 2,2× |
+| 100 | 88 | 0,0000591 | 0,0002200 | 3,7× |
+| 500 | 432 | 0,0002778 | 0,0045662 | 16,4× |
+| 1 000 | 875 | 0,0006039 | 0,0219409 | 36,3× |
+| 5 000 | 4 396 | 0,0034458 | 0,4728630 | 137,2× |
+| 10 000 | 8 793 | 0,0070718 | 1,9067221 | 269,6× |
+
+![Consolidación: tiempo medido frente al tamaño de entrada](graficas/consolidacion/tiempo_vs_n.png)
+
+El tiempo de la tabla hash crece aproximadamente en proporción a n. El de la lista enlazada crece aproximadamente como n²: al pasar de 5 000 a 10 000 resultados, el tiempo aumenta 4,03 veces, cerca del factor 4 esperado. En la tabla hash, el mismo cambio multiplica el tiempo por 2,05, cerca del factor 2 esperado. La razón entre ambas estrategias aumenta con n, por lo que la diferencia no se explica solo por una constante fija.
+
+La medición guardada no cronometra la función de búsqueda lineal de regla_actual.py: cronometra la tabla hash y la lista enlazada. Por ello, las cifras de lista enlazada son un contraste experimental de crecimiento cuadrático, no deben presentarse como el tiempo medido del proceso actual. Para una comparación empírica exacta con la línea base, hay que incluir consolidar_busqueda_lineal en medicion.py y volver a generar los CSV. Esta limitación se conserva explícita para no atribuir a la regla actual una medición ajena.
 
 ## 5.4 Lo medido frente a lo esperado
 
@@ -305,6 +376,10 @@ La estrategia voraz y la regla actual tienen un consumo de energía muy bajo. Au
 
 Por otro lado, la solución exhaustiva requiere tanto tiempo y recursos que no alcanzaría a terminar la programación de un mes antes de que comenzara el siguiente. Por eso, los valores de consumo de energía que aparecen en la tabla representan una estimación mínima de lo que implicaría intentar ejecutar esta solución.
 
+**Consolidación: energía medida y límite de la comparación.** Con la potencia de 0,38 kW y n = 10 000, la tabla hash consume aproximadamente 7,46×10⁻⁷ kWh por ejecución y la lista enlazada 2,01×10⁻⁴ kWh. Como escenario anual, si la operación se ejecutara una vez al día y el tamaño se mantuviera en 10 000, serían aproximadamente 2,72×10⁻⁴ kWh para la tabla hash y 7,35×10⁻² kWh para la lista enlazada. La frecuencia diaria es un supuesto de proyección, no un dato confirmado por el caso.
+
+Esos valores proceden de estrategias medidas. No son una medición de la búsqueda lineal actual, que no está incluida en el CSV de consolidación. Por tanto, no se afirma una reducción energética exacta frente al proceso real para esta operación; la reducción es esperable por complejidad, pero su magnitud debe cuantificarse midiendo directamente la función de referencia con el mismo conjunto de entradas.
+
 # 6. Análisis comparativo
 ## Un contraejemplo calculado
 Se supone que una unidad móvil recibe las siguientes cinco solicitudes. La columna orden de llegada indica el orden en que fueron recibidas las solicitudes.
@@ -374,6 +449,23 @@ En cuanto al tiempo de ejecución y al consumo de energía, la diferencia entre 
 
 - **Lo que los datos sintéticos dejaron fuera.** Para realizar las pruebas se generaron horarios aleatorios, con duraciones de 1 a 8 horas y cantidades de pacientes asignadas de manera independiente de la duración de cada jornada. Sin embargo, en la realidad las solicitudes pueden concentrarse en determinados días y horarios, tener duraciones más similares o presentar cancelaciones y cambios de programación. Además, el modelo considera que todas las solicitudes recibidas son válidas. Por esta razón, antes de implementar la estrategia, sería conveniente repetir la comparación utilizando solicitudes históricas reales. También se debe tener en cuenta el efecto sobre los municipios, ya que la estrategia voraz tiende a seleccionar jornadas más cortas y esto podría dejar en desventaja a los municipios que solicitan jornadas de mayor duración (este punto se desarrolla en la sección 7).
 
+# Comparación y recomendación para la operación 1
+
+| Criterio | Búsqueda lineal actual | Tabla hash | Lista enlazada |
+|---|---|---|---|
+| Resultado | Un registro más reciente por paciente | Igual | Igual |
+| Tiempo | Θ(nu), peor caso Θ(n²) | Θ(n) esperado; Θ(n²) peor caso | Θ(nu), peor caso Θ(n²) |
+| Espacio adicional | Θ(u) | Θ(n) | Θ(u) |
+| Evidencia medida en el repositorio | No está cronometrada en el CSV | Sí, hasta n = 10 000 | Sí, hasta n = 10 000 |
+
+Se recomienda la tabla hash, conservando una copia inmutable de los datos originales para trazabilidad y registrando qué resultado reemplazó a cuál. La decisión se apoya en la igualdad verificada de salidas con la lista enlazada y en el crecimiento observado; no se presenta como una medición directa frente a la implementación actual porque esa corrida falta. La lista enlazada no se recomienda para el volumen creciente: mantiene el recorrido secuencial y su tiempo medido creció cerca de cuadráticamente.
+
+## Recomendación conjunta
+
+Para la programación mensual, usar la selección voraz solo si la Secretaría confirma que el objetivo principal es maximizar el número de jornadas. Si la prioridad es maximizar pacientes de alto riesgo atendidos, usar la programación dinámica ponderada y documentar el criterio de desempate. Revisar con personal sanitario las consecuencias distributivas antes de automatizar la decisión. Para la consolidación, usar la tabla hash con validación de resultados, registro auditable y prueba directa frente a la regla actual en una ejecución medida.
+
+La solución debe crecer con los datos sin sacrificar correctitud: la tabla hash tiene costo esperado lineal para consolidar y la voraz Θ(n log n) para programar. Las recomendaciones son para ejecución secuencial y memoria suficiente, de acuerdo con los supuestos del trabajo.
+
 # 7. Implicaciones éticas, sociales y ambientales
 
 ## Consumo energético
@@ -423,19 +515,27 @@ Como la duración incluye el desplazamiento (sección 2), las jornadas largas su
 - **Revisar el criterio cada año.** Comparar cuántos pacientes de alto riesgo quedaron sin atender con cada criterio. La programación dinámica de la selección ponderada (sección 6) también es rápida para el volumen real, así que cambiar de criterio no tiene un costo de cómputo que lo impida.
 - **Explicar la regla.** Publicar a los municipios el criterio que se usa (la jornada que termina primero) y entregar a cada uno el motivo del rechazo (con qué jornada se cruzaba). Una regla sencilla tiene la ventaja de que se puede explicar y verificar.
 
+## Datos de salud y consolidación de resultados
+
+La consolidación procesa identificadores personales y resultados de tamizaje con un índice de riesgo. Una decisión de deduplicación incorrecta puede asociar a una persona con el resultado de otra, ocultar un resultado más reciente o exponer información de salud. El algoritmo debe trabajar con el mínimo de campos necesario, restringir el acceso al conjunto nominal, no publicar datos reales en el repositorio y conservar el archivo original sin alterarlo. Los experimentos usan datos sintéticos y semillas fijas.
+
+La salida de la programación de jornadas debe usar conteos agregados por municipio y no nombres ni documentos. Los registros de auditoría deben permitir reconstruir qué regla y qué datos agregados produjeron una programación, sin copiar identificadores de pacientes a reportes públicos. La persona responsable revisa los rechazos, cambios manuales y resultados antes de publicar el cronograma.
+
 ## Marco normativo
 
-La programación de jornadas es una decisión de una entidad pública sobre el acceso a servicios de salud, así que le aplican las siguientes normas colombianas:
+La programación de jornadas es una decisión de una entidad pública sobre el acceso a servicios de salud y la consolidación trata datos de salud identificables. Las siguientes normas y prácticas orientan el diseño:
 
-- **Constitución Política, artículos 13 y 49.** El artículo 49 establece la atención en salud como un servicio público a cargo del Estado, con acceso garantizado a todas las personas. El artículo 13 obliga al Estado a proteger especialmente a quienes están en circunstancias de debilidad manifiesta. Una regla que deja sistemáticamente por fuera a los municipios más alejados iría en contra de ambos.
-- **Ley 1751 de 2015 (Ley Estatutaria de Salud).** Reconoce la salud como derecho fundamental. Entre sus principios (artículo 6) están la equidad y la oportunidad; el artículo 11 define sujetos de especial protección, y el artículo 24 obliga al Estado a garantizar la disponibilidad de servicios en zonas marginadas. Las unidades móviles existen precisamente para eso, de modo que el criterio de asignación no debería alejarlas de esas zonas.
-- **Ley 1581 de 2012 (protección de datos personales).** Los datos relativos a la salud son datos sensibles (artículo 5) y su tratamiento tiene requisitos especiales. La operación 3 solo necesita el número de pacientes de alto riesgo por municipio, no quiénes son. Proponemos que la plataforma reciba únicamente ese conteo, lo que respeta los principios de finalidad y de acceso restringido de la ley.
-- **Ley 1712 de 2014 (transparencia y acceso a la información pública).** Los municipios y los ciudadanos pueden pedir información sobre cómo la Secretaría toma sus decisiones. El criterio de asignación y sus resultados deberían poder explicarse y entregarse.
-- **Marco Ético para la Inteligencia Artificial en Colombia (Gobierno de Colombia, 2021).** Nuestra solución no es inteligencia artificial, pero automatiza una decisión pública. Tomamos de ese marco los principios de transparencia, explicación, intervención humana y no discriminación, que son los que inspiran las medidas del apartado anterior.
+- **Constitución Política, artículos 13 y 49.** El artículo 13 exige igualdad y protección especial a personas en debilidad manifiesta; el artículo 49 reconoce la salud como servicio público a cargo del Estado. En el diseño, el objetivo matemático no se trata como sustituto del deber de revisar efectos desiguales entre municipios. [Texto oficial](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php/norma.php?346=&i=4125).
+- **Ley Estatutaria 1751 de 2015.** El artículo 2 reconoce el acceso oportuno, eficaz y con calidad; el artículo 6 establece elementos como disponibilidad y accesibilidad, y el artículo 11 protege especialmente, entre otros grupos, a personas adultas mayores y personas con discapacidad. La asignación debe revisarse para que maximizar jornadas no excluya de forma persistente a territorios con más barreras. [Texto oficial de Función Pública](https://www1.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=60733).
+- **Ley 1581 de 2012.** El artículo 5 clasifica como sensibles los datos relativos a la salud; los principios de finalidad, seguridad y confidencialidad condicionan el tratamiento. La operación 1 necesita identificar y deduplicar registros, pero debe limitar el acceso a ese uso y preservar los originales. Para la operación 3, el dato suficiente es el conteo agregado por municipio. [Texto oficial de Función Pública](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=49981).
+- **Ley 1712 de 2014.** La regla de asignación y sus resultados agregados deben poder explicarse como parte de la transparencia pública. El artículo 18 permite proteger información cuando su divulgación puede afectar, entre otros, la intimidad, la vida o la salud; transparencia no implica publicar datos nominales. [Texto oficial de Función Pública](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=56882).
+- **Buenas prácticas de control humano, explicación y no discriminación.** Se aplican como salvaguardas de una decisión pública automatizada, no como afirmación de que estos algoritmos sean inteligencia artificial. El coordinador revisa la programación y puede documentar excepciones justificadas; la entidad debe monitorear resultados por municipio y duración de viaje. El Marco Ético de IA de 2021 es una guía de recomendaciones para proyectos de IA, no una norma vinculante ni una clasificación de este proyecto como IA. [Documento oficial de Presidencia](https://dapre.presidencia.gov.co/TD/Marco-Etico-IA-Colombia-2021.pdf).
 
 ## Crecimiento y sostenibilidad de la decisión
 
 **Si crece el volumen.** La voraz es Θ(n log n): con 64 000 solicitudes tardó 0,04 s en nuestras mediciones, así que aunque el número de solicitudes se multiplique varias veces, el tiempo y la energía siguen siendo despreciables. La regla actual, en cambio, es Θ(n²) y con 16 000 solicitudes ya tardaba 5,4 s. El crecimiento no es un riesgo técnico para la voraz.
+
+**Escenario de aumento del 30 %.** Si n aumenta a 1,3n, la tabla hash conserva crecimiento esperado lineal y necesita aproximadamente 30 % más trabajo y memoria; la estrategia voraz crece por un factor cercano a 1,3·log(1,3n)/log(n), ligeramente superior a 1,3. En cambio, las referencias cuadráticas crecerían aproximadamente 1,3² = 1,69 veces. Son factores asintóticos, no una medición de producción. La recomendación debe probarse con ese nuevo tamaño y con la distribución real de solicitudes.
 
 **Si cambian las condiciones.** Si una subregión recibe una segunda unidad móvil, si se pueden asignar jornadas entre subregiones o si hay que considerar turnos del personal, el problema cambia y la solución debe volverse a analizar y a probar (sección 6). El código está separado por estrategia y tiene pruebas automáticas, lo que facilita esa revisión.
 
@@ -443,13 +543,21 @@ La programación de jornadas es una decisión de una entidad pública sobre el a
 
 ## Fuentes
 
-- Constitución Política de Colombia (1991). Artículos 13 y 49.
-- Congreso de la República de Colombia. (2015). *Ley Estatutaria 1751 de 2015, por medio de la cual se regula el derecho fundamental a la salud y se dictan otras disposiciones*.
-- Congreso de la República de Colombia. (2012). *Ley Estatutaria 1581 de 2012, por la cual se dictan disposiciones generales para la protección de datos personales*.
-- Congreso de la República de Colombia. (2014). *Ley 1712 de 2014, por medio de la cual se crea la Ley de Transparencia y del Derecho de Acceso a la Información Pública Nacional*.
-- Presidencia de la República de Colombia. (2021). *Marco Ético para la Inteligencia Artificial en Colombia*.
+- Asamblea Nacional Constituyente. (1991). *Constitución Política de Colombia*, artículos 13 y 49. [Texto oficial, Gestor Normativo de Función Pública](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php/norma.php?346=&i=4125).
+- Congreso de Colombia. (2015). *Ley Estatutaria 1751 de 2015*. [Texto oficial, Gestor Normativo de Función Pública](https://www1.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=60733).
+- Congreso de Colombia. (2012). *Ley Estatutaria 1581 de 2012*. [Texto oficial, Gestor Normativo de Función Pública](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=49981).
+- Congreso de Colombia. (2014). *Ley 1712 de 2014*. [Texto oficial, Gestor Normativo de Función Pública](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=56882).
+- Presidencia de la República de Colombia. (2021). *Marco Ético para la Inteligencia Artificial en Colombia*. [Documento oficial](https://dapre.presidencia.gov.co/TD/Marco-Etico-IA-Colombia-2021.pdf). Se cita como referencia no vinculante y no como norma aplicable al algoritmo del proyecto.
 
-# 8. Conclusiones (Pendiente para la entrega del 23 de noviembre)
+# 8. Conclusiones
+
+1. **Consolidación.** La búsqueda secuencial crece cuadráticamente cuando crece el número de pacientes distintos. La tabla hash mantuvo un crecimiento aproximadamente lineal en las mediciones disponibles y produjo la misma consolidación que la lista enlazada. Se recomienda la tabla hash, pero se debe medir también la función de búsqueda lineal actual antes de cuantificar el ahorro exacto frente a la línea base.
+2. **Programación de jornadas.** Para maximizar el número de jornadas sin cruces, la estrategia voraz por hora de finalización es óptima y escala como Θ(n log n); la solución exhaustiva sirve solo como verificación de instancias pequeñas. En el rango sintético 40–120 por subregión, la voraz programó más jornadas que la regla de llegada.
+3. **El objetivo cambia la respuesta.** Maximizar jornadas no equivale a maximizar pacientes de alto riesgo. Si la Secretaría prioriza pacientes, la programación dinámica ponderada es la estrategia coherente; el análisis muestra que la voraz logra entre 74 % y 80 % del óptimo ponderado en los tamaños del caso probados.
+4. **Energía y sociedad.** La energía del cálculo de jornadas es muy pequeña; la consecuencia más importante es distributiva: la voraz tiende a favorecer jornadas cortas y podría perjudicar municipios remotos. Se recomienda supervisión humana, monitoreo de rechazos y revisión periódica del criterio con datos históricos reales.
+5. **Alcance de la evidencia.** Los datos experimentales son sintéticos y no reemplazan una prueba con datos reales ni una medición en el servidor objetivo. La implementación se ejecuta en un hilo y supone memoria suficiente. El trabajo futuro debe medir la regla actual de consolidación, verificar el comportamiento en el volumen real y probar escenarios con una segunda unidad o cambios de prioridad.
+
+El equipo aprendió que seleccionar una estrategia requiere definir primero qué resultado se optimiza, verificar que la mejora conserva la correctitud y evaluar quién recibe el beneficio o asume el costo de la decisión. Se recomienda mantener los archivos originales, registrar versiones de parámetros y conservar evidencia reproducible de cada ejecución.
 
 # 9. Instrucciones para reproducir el experimento
 
@@ -486,3 +594,17 @@ La programación de jornadas es una decisión de una entidad pública sobre el a
    ```
 
    Escribe `resultados/jornadas_unidades/pacientes.csv`.
+
+## Reproducir consolidación
+
+Desde la raíz del repositorio:
+
+```text
+cd src/consolidacion
+python pruebas.py
+python medicion.py
+```
+
+La medición genera tiempos y contraste en resultados/consolidacion/ y gráficas en graficas/consolidacion/. Usa los mismos tres valores de semilla para ambas estrategias y verifica que la tabla hash y la lista enlazada devuelvan la misma salida. La búsqueda lineal actual no se cronometra en la versión de medicion.py que produjo los CSV incluidos; se debe añadir a esa comparación para obtener una medición directa de línea base.
+
+El PDF de entrega se genera desde la raíz con node generar_pdf.js. El archivo se construye a partir de este README, incorpora las imágenes enlazadas y conserva los hipervínculos a las fuentes oficiales.
