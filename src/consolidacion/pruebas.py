@@ -1,11 +1,11 @@
 """Pruebas con assert de la consolidación de pacientes repetidos."""
 
 from datos import generar_resultados
-from estrategias import consolidar_con_diccionario, consolidar_ordenando
+from estrategias import consolidar_con_lista_enlazada, consolidar_con_tabla_hash
 from modelo import Resultado, paciente
 from regla_actual import consolidar_busqueda_lineal
 
-ESTRATEGIAS = (consolidar_busqueda_lineal, consolidar_con_diccionario, consolidar_ordenando)
+ESTRATEGIAS = (consolidar_busqueda_lineal, consolidar_con_tabla_hash, consolidar_con_lista_enlazada)
 
 
 def r(tipo: str, numero: str, fecha: int, riesgo: int = 50, lote: int = 1) -> Resultado:
@@ -79,6 +79,12 @@ def probar_no_modifica_entrada() -> None:
         estrategia(entrada)
         assert entrada == copia
 
+def probar_orden_de_primera_aparicion() -> None:
+    """Las propuestas devuelven a los pacientes en el mismo orden que la regla actual."""
+    entrada = generar_resultados(500, semilla=7, tasa_repetidos=0.15)
+    referencia = consolidar_busqueda_lineal(entrada)
+    assert consolidar_con_tabla_hash(entrada) == referencia
+    assert consolidar_con_lista_enlazada(entrada) == referencia
 
 def probar_aleatorias() -> None:
     """30 instancias: las tres estrategias coinciden y cumplen las restricciones."""
@@ -87,8 +93,8 @@ def probar_aleatorias() -> None:
         entrada = generar_resultados(n, semilla, tasa_repetidos=0.08 + (semilla % 8) / 100)
         referencia = normalizar(consolidar_busqueda_lineal(entrada))
         assert cumple_restricciones(entrada, referencia), semilla
-        assert normalizar(consolidar_con_diccionario(entrada)) == referencia, semilla
-        assert normalizar(consolidar_ordenando(entrada)) == referencia, semilla
+        assert normalizar(consolidar_con_tabla_hash(entrada)) == referencia, semilla
+        assert normalizar(consolidar_con_lista_enlazada(entrada)) == referencia, semilla
 
 
 if __name__ == "__main__":
@@ -97,5 +103,6 @@ if __name__ == "__main__":
     probar_mas_reciente_llega_antes()
     probar_empate_de_fecha()
     probar_no_modifica_entrada()
+    probar_orden_de_primera_aparicion()
     probar_aleatorias()
     print("Todas las pruebas pasaron.")
